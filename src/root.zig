@@ -24,6 +24,18 @@ pub const Conn = struct {
         };
     }
 
+    pub fn beginTransaction(self: *const Self) !void {
+        try self.exec("BEGIN TRANSACTION", emptyCallback);
+    }
+
+    pub fn closeTransaction(self: *const Self, success: bool) !void {
+        if (success) {
+            try self.exec("COMMIT", emptyCallback);
+        } else {
+            try self.exec("ROLLBACK", emptyCallback);
+        }
+    }
+
     pub fn deinit(self: Self) void {
         if (self.ptr == null) {
             return;
@@ -120,7 +132,6 @@ pub const Statement = struct {
 
     pub fn bindParam(self: *const Self, idx: c_int, param: anytype) !void {
         const info = @typeInfo(@TypeOf(param));
-        std.log.info("type is {any}", .{info});
         const res = switch (info) {
             .int, .comptime_int => c.sqlite3_bind_int(self.ptr, idx, @intCast(param)),
             .float, .comptime_float => c.sqlite3_bind_double(self.ptr, idx, @floatCast(param)),
