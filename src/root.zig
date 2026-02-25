@@ -57,6 +57,11 @@ pub const Conn = struct {
     }
 };
 
+const StatementRes = enum(c_int) {
+    done = c.SQLITE_DONE,
+    row = c.SQLITE_ROW,
+};
+
 pub const Statement = struct {
     ptr: ?*c.sqlite3_stmt,
 
@@ -80,9 +85,38 @@ pub const Statement = struct {
         if (res != OK) return error.FailedClose;
     }
 
-    pub fn exec(self: *const Self) !void {
+    pub fn exec(self: *const Self) !StatementRes {
         const res = c.sqlite3_step(self.ptr);
-        if (res != c.SQLITE_DONE) return error.FailedStmt;
+        return std.enums.fromInt(StatementRes, res) orelse return error.FailedStmt;
+    }
+
+    pub fn readStruct(self: *const Self, comptime T: type) !T {
+        const info = @typeInfo(T);
+        assert(info == .@"struct");
+        var target: T = undefined;
+        inline for (info.@"struct".fields, 0..) |field, idx| {
+            const val = try self.readColumn(field.type, @intCast(idx));
+            @field(target, field.name) = val;
+        }
+        return target;
+    }
+
+    pub fn readColumn(self: *const Self, comptime T: type, idx: c_int) !T {
+        const info = @typeInfo(T);
+        return switch (info) {
+            .int, .comptime_int => @intCast(c.sqlite3_column_int(self.ptr, idx)),
+            .float, .comptime_float => @floatCast(c.sqlite3_column_double(self.ptr, idx)),
+            .bool => {
+                const digit: u2 = @intCast(c.sqlite3_column_int(self.ptr, idx));
+                if (digit == 1) return true else return false;
+            },
+            .pointer => |ptr| if (ptr.child == u8) {
+                const c_str = c.sqlite3_column_text(self.ptr, idx);
+                if (c_str == null) return error.BadString;
+                return std.mem.span(c_str);
+            },
+            else => return error.Unsupported,
+        };
     }
 
     pub fn bindStruct(self: *const Self, x: anytype) !void {
