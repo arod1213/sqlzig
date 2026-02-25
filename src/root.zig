@@ -2,7 +2,6 @@ const std = @import("std");
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
 const c = @import("lib.zig").c;
-const parameters = @import("param.zig");
 
 const Callback = ?*const fn (?*anyopaque, c_int, [*c][*c]u8, [*c][*c]u8) callconv(.c) c_int;
 pub fn emptyCallback(_: ?*anyopaque, _: c_int, _: [*c][*c]u8, _: [*c][*c]u8) callconv(.c) c_int {
@@ -35,16 +34,6 @@ pub const Conn = struct {
             const msg = c.sqlite3_errmsg(self.ptr);
             std.log.err("failed to deinit db: {any}", .{msg});
         }
-    }
-
-    pub fn execParams(self: Self, alloc: Allocator, sql: [:0]const u8, params: anytype) !void {
-        const info = @typeInfo(@TypeOf(params));
-        assert(info == .@"struct");
-        const struct_params = try parameters.structToParams(alloc, params);
-
-        const sql_stmt = try std.mem.join(alloc, "", &[_][]const u8{ sql, "(", struct_params, ")" });
-        std.log.info("stmt is: {s}", .{sql_stmt});
-        try self.exec(@ptrCast(sql_stmt), emptyCallback);
     }
 
     pub fn exec(self: Self, sql: [:0]const u8, callback: Callback) !void {
