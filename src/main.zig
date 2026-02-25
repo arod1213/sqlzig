@@ -23,6 +23,7 @@ pub fn main() !void {
 
     const sql = "INSERT INTO files (id, name, older) VALUES (@id, @name, @older)";
     const stmt = try sqlzig.Statement.init(&conn, sql);
+    defer stmt.close() catch {};
     for (data) |d| {
         defer stmt.reset() catch {};
         try stmt.bindStruct(d);
@@ -31,5 +32,4 @@ pub fn main() !void {
         // try stmt.bindParam(3, d.older);
         try stmt.exec();
     }
-    try stmt.close();
 }
