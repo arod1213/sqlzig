@@ -37,12 +37,12 @@ pub fn insertALot(conn: *const Conn) !void {
     defer stmt.close() catch {};
 
     for (0..5000000) |idx| {
-        const data: Abc = .{ .id = @intCast(idx), .name = "john", .older = false };
+        const d: Abc = .{ .id = @intCast(idx), .name = "john", .older = false };
         defer stmt.reset() catch {};
-        try stmt.bindStruct(data);
-        // try stmt.bindParam(1, d.id);
-        // try stmt.bindParam(2, d.name);
-        // try stmt.bindParam(3, d.older);
+        // try stmt.bindStruct(data);
+        try stmt.bindParam(1, d.id);
+        try stmt.bindParam(2, d.name);
+        try stmt.bindParam(3, d.older);
         _ = try stmt.exec();
     }
     try conn.closeTransaction(true);

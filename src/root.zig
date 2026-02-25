@@ -142,6 +142,7 @@ pub const Statement = struct {
         if (res != OK) return error.FailedPrepare;
     }
 
+    // use @param_name not just param_name
     pub fn namedParamIndex(self: *const Self, name: [:0]const u8) !c_int {
         const idx = c.sqlite3_bind_parameter_index(self.ptr, name);
         if (idx == 0) {
