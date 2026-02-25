@@ -2,8 +2,7 @@ const std = @import("std");
 const sqlzig = @import("sqlzig");
 
 const Conn = sqlzig.Conn;
-const ParamType = sqlzig.ParamType;
-const NamedParam = sqlzig.NamedParam;
+const Statement = sqlzig.Statement;
 
 const Abc = struct {
     id: i8,
@@ -17,7 +16,7 @@ pub fn insert(conn: *const Conn) !void {
         .{ .id = 10, .name = "jacob", .older = true },
     };
     const sql = "INSERT INTO files (id, name, older) VALUES (@id, @name, @older)";
-    const stmt = try sqlzig.Statement.init(conn, sql);
+    const stmt = try Statement.init(conn, sql);
     defer stmt.close() catch {};
     for (data) |d| {
         defer stmt.reset() catch {};
@@ -31,7 +30,7 @@ pub fn insert(conn: *const Conn) !void {
 
 pub fn query(conn: *const Conn) !void {
     const sql = "SELECT id, older, name FROM files LIMIT 1";
-    const stmt = try sqlzig.Statement.init(conn, sql);
+    const stmt = try Statement.init(conn, sql);
     defer stmt.close() catch {};
     _ = try stmt.exec();
     // const val = try stmt.readColumn(i8, 0);
