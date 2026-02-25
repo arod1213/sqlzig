@@ -63,7 +63,7 @@ pub const Statement = struct {
     const Self = @This();
     pub fn init(conn: *const Conn, sql: [:0]const u8) !Self {
         var ptr: ?*c.sqlite3_stmt = undefined;
-        const res = c.sqlite3_prepare(conn.ptr, sql, -1, &ptr, null);
+        const res = c.sqlite3_prepare_v3(conn.ptr, sql, -1, 0, &ptr, null);
         if (res != OK) return error.FailedPrepare;
         return .{
             .ptr = ptr,

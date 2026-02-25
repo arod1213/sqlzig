@@ -8,7 +8,7 @@ const NamedParam = sqlzig.NamedParam;
 const Abc = struct {
     id: i8 = 8,
     older: bool = false,
-    name: []const u8 = "aidan",
+    name: []const u8 = "my name",
 };
 
 const nothing = sqlzig.emptyCallback;
