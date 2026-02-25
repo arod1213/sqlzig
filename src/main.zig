@@ -21,13 +21,14 @@ pub fn main() !void {
 
     const data = [_]Abc{ .{}, .{ .id = 10, .name = "other", .older = true } };
 
-    const sql = "INSERT INTO files (id, name, older) VALUES (?, ?, ?)";
+    const sql = "INSERT INTO files (id, name, older) VALUES (@id, @name, @older)";
     const stmt = try sqlzig.Statement.init(&conn, sql);
     for (data) |d| {
         defer stmt.reset() catch {};
-        try stmt.bindParam(1, d.id);
-        try stmt.bindParam(2, d.name);
-        try stmt.bindParam(3, d.older);
+        try stmt.bindStruct(d);
+        // try stmt.bindParam(1, d.id);
+        // try stmt.bindParam(2, d.name);
+        // try stmt.bindParam(3, d.older);
         try stmt.exec();
     }
     try stmt.close();

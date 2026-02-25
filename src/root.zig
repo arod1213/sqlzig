@@ -85,6 +85,16 @@ pub const Statement = struct {
         if (res != c.SQLITE_DONE) return error.FailedStmt;
     }
 
+    pub fn bindStruct(self: *const Self, x: anytype) !void {
+        const info = @typeInfo(@TypeOf(x));
+        assert(info == .@"struct");
+        inline for (info.@"struct".fields) |field| {
+            const param_name = "@" ++ field.name;
+            const idx = try self.namedParamIndex(@ptrCast(param_name));
+            try self.bindParam(idx, @field(x, field.name));
+        }
+    }
+
     pub fn bindParam(self: *const Self, idx: c_int, param: anytype) !void {
         const info = @typeInfo(@TypeOf(param));
         std.log.info("type is {any}", .{info});
@@ -98,9 +108,12 @@ pub const Statement = struct {
         if (res != OK) return error.FailedPrepare;
     }
 
-    pub fn namedParamIndex(self: *const Self, name: [:0]const u8) !c_uint {
+    pub fn namedParamIndex(self: *const Self, name: [:0]const u8) !c_int {
         const idx = c.sqlite3_bind_parameter_index(self.ptr, name);
-        if (idx == 0) return error.InvalidName;
+        if (idx == 0) {
+            std.log.err("failed to find {s}", .{name});
+            return error.InvalidName;
+        }
         return idx;
     }
 };
