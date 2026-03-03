@@ -10,6 +10,7 @@ pub fn build(b: *std.Build) void {
     });
     mod.addCSourceFile(.{
         .file = b.path("lib/sqlite.c"),
+        .flags = &.{"-std=c99"},
     });
     mod.link_libc = true;
 
