@@ -131,9 +131,10 @@ pub const Statement = struct {
     }
 
     pub fn bindParam(self: *const Self, idx: c_int, param: anytype) !void {
-        const info = @typeInfo(@TypeOf(param));
+        const T = @TypeOf(param);
+        const info = @typeInfo(T);
         const res = switch (info) {
-            .int, .comptime_int => c.sqlite3_bind_int(self.ptr, idx, @intCast(param)),
+            .int, .comptime_int => if (T == u64 or T == i64) c.sqlite3_bind_int64(self.ptr, idx, @intCast(param)) else c.sqlite3_bind_int(self.ptr, idx, @intCast(param)),
             .float, .comptime_float => c.sqlite3_bind_double(self.ptr, idx, @floatCast(param)),
             .bool => c.sqlite3_bind_int(self.ptr, idx, @intFromBool(param)),
             .pointer => |ptr| if (ptr.child == u8) c.sqlite3_bind_text(self.ptr, idx, @ptrCast(param), @intCast(param.len), null) else return error.Unsupported,
