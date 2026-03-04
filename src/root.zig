@@ -36,6 +36,10 @@ pub const Conn = struct {
         }
     }
 
+    pub fn numChanges(self: *const Self) isize {
+        return @intCast(c.sqlite3_changes(self.ptr));
+    }
+
     pub fn deinit(self: Self) void {
         if (self.ptr == null) {
             return;

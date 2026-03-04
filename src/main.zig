@@ -54,7 +54,7 @@ pub fn query(conn: *const Conn) !void {
     defer stmt.close() catch {};
     _ = try stmt.exec();
     // const val = try stmt.readColumn(i8, 0);
-    const val = try stmt.readStruct(Abc);
+    const val: ?Abc = stmt.readStruct(Abc) catch null;
     std.log.info("val is {any}", .{val});
 }
 
@@ -66,6 +66,6 @@ pub fn main() !void {
     const migration = "CREATE TABLE IF NOT EXISTS files ( id INT not null, name TEXT not null, older INT not null)";
     try conn.exec(migration, nothing);
 
-    try insertALot(&conn);
-    // try query(&conn);
+    // try insertALot(&conn);
+    try query(&conn);
 }
