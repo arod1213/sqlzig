@@ -8,9 +8,14 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/root.zig"),
         .target = target,
     });
+    mod.addIncludePath(b.path("lib/"));
     mod.addCSourceFile(.{
         .file = b.path("lib/sqlite.c"),
-        .flags = &.{"-std=c99"},
+        .flags = &.{
+            "-std=c99",
+            "-I",
+            "lib",
+        },
     });
     mod.link_libc = true;
 
