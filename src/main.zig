@@ -1,7 +1,7 @@
 const std = @import("std");
 const sqlzig = @import("sqlzig");
 
-const Conn = sqlzig.Conn;
+const Conn = sqlzig.Connection;
 const Statement = sqlzig.Statement;
 
 const Abc = struct {
@@ -15,15 +15,16 @@ pub fn insert(conn: *const Conn) !void {
         .{ .id = 8, .name = "john", .older = false },
         .{ .id = 10, .name = "jacob", .older = true },
     };
+
     const sql = "INSERT INTO files (id, name, older) VALUES (@id, @name, @older)";
     const stmt = try Statement.init(conn, sql);
     defer stmt.close() catch {};
     for (data) |d| {
         defer stmt.reset() catch {};
-        try stmt.bindStruct(d);
-        // try stmt.bindParam(1, d.id);
-        // try stmt.bindParam(2, d.name);
-        // try stmt.bindParam(3, d.older);
+        // try stmt.bindStruct(d);
+        try stmt.bindParam("@id", d.id);
+        try stmt.bindParam(2, d.name);
+        try stmt.bindParam(3, d.older);
         _ = try stmt.exec();
     }
 }
@@ -41,7 +42,7 @@ pub fn insertALot(conn: *const Conn) !void {
         defer stmt.reset() catch {};
         // try stmt.bindStruct(data);
         try stmt.bindParam(1, d.id);
-        try stmt.bindParam(2, d.name);
+        try stmt.bindParam("@name", d.name);
         try stmt.bindParam(3, d.older);
         _ = try stmt.exec();
     }
@@ -67,5 +68,6 @@ pub fn main() !void {
     try conn.exec(migration);
 
     // try insertALot(&conn);
-    try query(&conn);
+    // try query(&conn);
+    try insert(&conn);
 }
