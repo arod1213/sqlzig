@@ -54,8 +54,15 @@ pub fn query(conn: *const Connection) !void {
     const stmt = try Statement.init(conn, sql);
     defer stmt.deinit() catch {};
     _ = try stmt.exec();
-    // const val = try stmt.readColumn(i8, 0);
-    const val: ?Abc = stmt.readStruct(Abc) catch null;
+
+    const id = try stmt.readColumn(u64, 0);
+    const older = try stmt.readColumn(bool, 1);
+    const name = try stmt.readColumn([]const u8, 2);
+    const val = Abc{
+        .id = id,
+        .older = older,
+        .name = name,
+    };
     std.log.info("val is {any}", .{val});
 }
 
