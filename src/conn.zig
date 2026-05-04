@@ -25,14 +25,14 @@ pub const Connection = struct {
     }
 
     pub fn beginTransaction(self: *const Self) !void {
-        try self.exec("BEGIN TRANSACTION", emptyCallback);
+        try self.exec("BEGIN TRANSACTION");
     }
 
     pub fn closeTransaction(self: *const Self, success: bool) !void {
         if (success) {
-            try self.exec("COMMIT", emptyCallback);
+            try self.exec("COMMIT");
         } else {
-            try self.exec("ROLLBACK", emptyCallback);
+            try self.exec("ROLLBACK");
         }
     }
 

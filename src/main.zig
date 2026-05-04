@@ -1,7 +1,7 @@
 const std = @import("std");
 const sqlzig = @import("sqlzig");
 
-const Conn = sqlzig.Connection;
+const Connection = sqlzig.Connection;
 const Statement = sqlzig.Statement;
 
 const Abc = struct {
@@ -10,7 +10,7 @@ const Abc = struct {
     name: []const u8,
 };
 
-pub fn insert(conn: *const Conn) !void {
+pub fn insert(conn: *const Connection) !void {
     const data = [_]Abc{
         .{ .id = 8, .name = "john", .older = false },
         .{ .id = 10, .name = "jacob", .older = true },
@@ -29,18 +29,18 @@ pub fn insert(conn: *const Conn) !void {
     }
 }
 
-pub fn insertALot(conn: *const Conn) !void {
+pub fn insertALot(conn: *const Connection) !void {
     try conn.beginTransaction();
     errdefer conn.closeTransaction(false) catch {};
 
     const sql = "INSERT INTO files (id, name, older) VALUES (@id, @name, @older)";
     const stmt = try Statement.init(conn, sql);
-    defer stmt.close() catch {};
+    defer stmt.deinit() catch {};
 
     for (0..5000000) |idx| {
         const d: Abc = .{ .id = @intCast(idx), .name = "john", .older = false };
         defer stmt.reset() catch {};
-        // try stmt.bindStruct(data);
+        // try stmt.bindStruct(d);
         try stmt.bindParam(1, d.id);
         try stmt.bindParam("@name", d.name);
         try stmt.bindParam(3, d.older);
@@ -49,7 +49,7 @@ pub fn insertALot(conn: *const Conn) !void {
     try conn.closeTransaction(true);
 }
 
-pub fn query(conn: *const Conn) !void {
+pub fn query(conn: *const Connection) !void {
     const sql = "SELECT id, older, name FROM files LIMIT 1";
     const stmt = try Statement.init(conn, sql);
     defer stmt.deinit() catch {};
@@ -59,15 +59,14 @@ pub fn query(conn: *const Conn) !void {
     std.log.info("val is {any}", .{val});
 }
 
-const nothing = sqlzig.emptyCallback;
 pub fn main() !void {
-    const conn = try Conn.init("./test.db");
+    const conn = try Connection.init("./test.db");
     defer conn.deinit();
 
     const migration = "CREATE TABLE IF NOT EXISTS files ( id INT not null, name TEXT not null, older INT not null)";
     try conn.exec(migration);
 
-    // try insertALot(&conn);
-    // try query(&conn);
-    try insert(&conn);
+    // try sqlzig.insertALot(&conn);
+    try query(&conn);
+    // try sqlzig.insert(&conn);
 }

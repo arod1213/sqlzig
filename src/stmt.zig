@@ -83,16 +83,18 @@ pub const Statement = struct {
         return std.enums.fromInt(StatementRes, res) orelse return error.FailedStmt;
     }
 
-    pub fn readStruct(self: *const Self, comptime T: type) !T {
-        const info = @typeInfo(T);
-        assert(info == .@"struct");
-        var target: T = undefined;
-        inline for (info.@"struct".fields, 0..) |field, idx| {
-            const val = try self.readColumn(field.type, @intCast(idx));
-            @field(target, field.name) = val;
-        }
-        return target;
-    }
+    // pub fn readStruct(self: *const Self, comptime T: type) !T {
+    //     const info = @typeInfo(T);
+    //     assert(info == .@"struct");
+    //     var target: T = undefined;
+    //     inline for (info.@"struct".fields) |field| {
+    //         std.log.err("field name is {s} {any}", .{ field.name, field.type });
+    //         const idx = try columnIndex(self.ptr, @ptrCast(field.name));
+    //         const val = try self.readColumn(field.type, idx);
+    //         @field(target, field.name) = val;
+    //     }
+    //     return target;
+    // }
 
     pub fn readColumn(self: *const Self, comptime T: type, idx: c_int) !T {
         const info = @typeInfo(T);
@@ -106,10 +108,10 @@ pub const Statement = struct {
                     else => return error.InvalidBool,
                 };
             },
-            .pointer => |ptr| if (ptr.child == u8) {
+            .pointer => {
                 const c_str = c.sqlite3_column_text(self.ptr, idx);
                 if (c_str == null) return error.BadString;
-                return std.mem.span(c_str);
+                return @ptrCast(std.mem.span(c_str));
             },
             else => return error.Unsupported,
         };
@@ -129,6 +131,14 @@ pub const Statement = struct {
         try bindValue(self.ptr, idx, param);
     }
 };
+
+fn parameterIndex(stmt: ?*c.sqlite3_stmt, name: [*c]const u8) !c_int {
+    const idx = c.sqlite3_bind_parameter_index(stmt, name);
+    if (idx == 0) {
+        return error.BadIndex;
+    }
+    return idx;
+}
 
 fn bindValue(stmt: ?*c.sqlite3_stmt, idx: c_int, param: anytype) !void {
     const T = @TypeOf(param);
@@ -175,7 +185,7 @@ test "binding" {
         \\)
     ;
     try conn.exec(sql);
-    const insert_sql =
+    const select_sql =
         \\
         \\SELECT id FROM works 
         \\WHERE id = @id 
@@ -183,12 +193,13 @@ test "binding" {
         \\AND decimal = @decimal 
         \\AND is_valid = @valid
     ;
-    var stmt = try Statement.init(&conn, insert_sql);
+    var stmt = try Statement.init(&conn, select_sql);
     defer stmt.deinit() catch {};
     try stmt.bindParam("@id", "abc");
     try stmt.bindParam("@num", 12389);
     try stmt.bindParam("@decimal", 4.56);
     try stmt.bindParam("@valid", true);
+    _ = try stmt.exec();
 }
 
 test "bind struct" {
@@ -210,7 +221,7 @@ test "bind struct" {
         valid: bool = true,
     };
 
-    const insert_sql =
+    const select_sql =
         \\
         \\SELECT id FROM works 
         \\WHERE id = @id 
@@ -218,7 +229,55 @@ test "bind struct" {
         \\AND decimal = @decimal 
         \\AND is_valid = @valid
     ;
-    var stmt = try Statement.init(&conn, insert_sql);
+    var stmt = try Statement.init(&conn, select_sql);
     defer stmt.deinit() catch {};
     try stmt.bindStruct(Input{});
+    _ = try stmt.exec();
+}
+
+test "insert + read struct" {
+    var conn = try Connection.init(":memory:");
+    defer conn.deinit();
+    const sql =
+        \\CREATE TABLE works (
+        \\ id TEXT,
+        \\ num INTEGER,
+        \\ decimal REAL,
+        \\ is_valid INTEGER 
+        \\)
+    ;
+    try conn.exec(sql);
+
+    const insert_sql =
+        \\
+        \\INSERT INTO works
+        \\(id, num, decimal, is_valid)
+        \\VALUES
+        \\(@id, @num, @decimal, @valid)
+    ;
+    var stmt = try Statement.init(&conn, insert_sql);
+    defer stmt.deinit() catch {};
+
+    const Input = struct {
+        id: []const u8 = "abc",
+        num: u32 = 12389,
+        decimal: f64 = 4.56,
+        valid: bool = true,
+    };
+    try stmt.bindStruct(Input{});
+    _ = try stmt.exec();
+
+    const select_sql = "SELECT id, num, decimal, is_valid FROM works LIMIT 1";
+    var read_stmt = try Statement.init(&conn, select_sql);
+    defer read_stmt.deinit() catch {};
+    _ = try read_stmt.exec();
+
+    const id = try read_stmt.readColumn([]const u8, 0);
+    const num = try read_stmt.readColumn(u32, 1);
+    const decimal = try read_stmt.readColumn(f64, 2);
+    const valid = try read_stmt.readColumn(bool, 3);
+    assert(std.mem.eql(u8, id, "abc"));
+    assert(num == 12389);
+    assert(decimal == 4.56);
+    assert(valid == true);
 }
