@@ -137,13 +137,7 @@ pub const Statement = struct {
             },
             .float, .comptime_float => c.sqlite3_bind_double(self.ptr, idx, @floatCast(param)),
             .bool => c.sqlite3_bind_int(self.ptr, idx, @intFromBool(param)),
-            .pointer => |ptr| blk: {
-                if (ptr.child == u8) {
-                    break :blk c.sqlite3_bind_text(self.ptr, idx, @ptrCast(param), @intCast(param.len), null);
-                } else {
-                    return error.Unsupported;
-                }
-            },
+            .pointer, .array => c.sqlite3_bind_text(self.ptr, idx, @ptrCast(param), @intCast(param.len), null),
             else => return error.Unsupported,
         };
         if (res != OK) return error.FailedPrepare;
