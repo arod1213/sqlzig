@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const sqlite_c = b.addTranslateC(.{
         .optimize = optimize,
-        .root_source_file = b.path("lib/sqlite.h"),
+        .root_source_file = b.path("lib/sqlite3.h"),
         .target = target,
         .link_libc = true,
     });
