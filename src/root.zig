@@ -52,8 +52,8 @@ pub const Conn = struct {
         }
     }
 
-    pub fn exec(self: Self, sql: [:0]const u8, callback: Callback) !void {
-        const res = c.sqlite3_exec(self.ptr, @ptrCast(sql), callback, null, null);
+    pub fn exec(self: Self, sql: [:0]const u8) !void {
+        const res = c.sqlite3_exec(self.ptr, @ptrCast(sql), emptyCallback, null, null);
         if (res != c.SQLITE_OK) {
             const msg = c.sqlite3_errmsg(self.ptr);
             std.log.err("failed to exec sql: {any} {d}", .{ msg, res });
