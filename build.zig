@@ -3,13 +3,14 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-
-    const mod = b.addModule("sqlzig", .{
-        .root_source_file = b.path("src/root.zig"),
+    const sqlite_c = b.addTranslateC(.{
+        .optimize = optimize,
+        .root_source_file = b.path("lib/sqlite.h"),
         .target = target,
+        .link_libc = true,
     });
-    mod.addIncludePath(b.path("lib/"));
-    mod.addCSourceFile(.{
+    const sqlite = sqlite_c.createModule();
+    sqlite.addCSourceFile(.{
         .file = b.path("lib/sqlite.c"),
         .flags = &.{
             "-std=c99",
@@ -17,7 +18,15 @@ pub fn build(b: *std.Build) void {
             "lib",
         },
     });
-    mod.link_libc = true;
+
+    const mod = b.addModule("sqlzig", .{
+        .root_source_file = b.path("src/root.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "sqlite", .module = sqlite },
+        },
+    });
+    mod.addIncludePath(b.path("lib/"));
 
     const exe = b.addExecutable(.{
         .name = "sqlzig",

@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("lib.zig").c;
+const c = @import("sqlite");
 
 fn tryResult(res: c_int) !void {
     if (res != c.SQLITE_OK) {
