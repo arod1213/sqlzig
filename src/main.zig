@@ -18,7 +18,7 @@ pub fn insert(conn: *const Conn) !void {
 
     const sql = "INSERT INTO files (id, name, older) VALUES (@id, @name, @older)";
     const stmt = try Statement.init(conn, sql);
-    defer stmt.close() catch {};
+    defer stmt.deinit() catch {};
     for (data) |d| {
         defer stmt.reset() catch {};
         // try stmt.bindStruct(d);
@@ -52,7 +52,7 @@ pub fn insertALot(conn: *const Conn) !void {
 pub fn query(conn: *const Conn) !void {
     const sql = "SELECT id, older, name FROM files LIMIT 1";
     const stmt = try Statement.init(conn, sql);
-    defer stmt.close() catch {};
+    defer stmt.deinit() catch {};
     _ = try stmt.exec();
     // const val = try stmt.readColumn(i8, 0);
     const val: ?Abc = stmt.readStruct(Abc) catch null;

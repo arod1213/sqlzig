@@ -68,7 +68,7 @@ pub const Statement = struct {
         };
     }
 
-    pub fn close(self: *const Self) !void {
+    pub fn deinit(self: *const Self) !void {
         const res = c.sqlite3_finalize(self.ptr);
         if (res != OK) return error.FailedClose;
     }
@@ -100,8 +100,11 @@ pub const Statement = struct {
             .int, .comptime_int => @intCast(c.sqlite3_column_int(self.ptr, idx)),
             .float, .comptime_float => @floatCast(c.sqlite3_column_double(self.ptr, idx)),
             .bool => {
-                const digit: u2 = @intCast(c.sqlite3_column_int(self.ptr, idx));
-                if (digit == 1) return true else return false;
+                return switch (c.sqlite3_column_int(self.ptr, idx)) {
+                    1 => true,
+                    0 => false,
+                    else => return error.InvalidBool,
+                };
             },
             .pointer => |ptr| if (ptr.child == u8) {
                 const c_str = c.sqlite3_column_text(self.ptr, idx);
@@ -117,29 +120,105 @@ pub const Statement = struct {
         assert(info == .@"struct");
         inline for (info.@"struct".fields) |field| {
             const param_name = "@" ++ field.name;
-            const idx = try self.namedParamIndex(@ptrCast(param_name));
-            try self.bindParam(idx, @field(x, field.name));
+            try self.bindParam(param_name, @field(x, field.name));
         }
     }
 
     pub fn bindParam(self: *const Self, pos: anytype, param: anytype) !void {
-        const T = @TypeOf(param);
-        const info = @typeInfo(T);
         const idx = try param_index(self.ptr, pos);
-
-        const res = switch (info) {
-            .int, .comptime_int => blk: {
-                if (T == u64 or T == i64) {
-                    break :blk c.sqlite3_bind_int64(self.ptr, idx, @intCast(param));
-                } else {
-                    break :blk c.sqlite3_bind_int(self.ptr, idx, @intCast(param));
-                }
-            },
-            .float, .comptime_float => c.sqlite3_bind_double(self.ptr, idx, @floatCast(param)),
-            .bool => c.sqlite3_bind_int(self.ptr, idx, @intFromBool(param)),
-            .pointer, .array => c.sqlite3_bind_text(self.ptr, idx, @ptrCast(param), @intCast(param.len), null),
-            else => return error.Unsupported,
-        };
-        if (res != OK) return error.FailedPrepare;
+        try bindValue(self.ptr, idx, param);
     }
 };
+
+fn bindValue(stmt: ?*c.sqlite3_stmt, idx: c_int, param: anytype) !void {
+    const T = @TypeOf(param);
+    const info = @typeInfo(T);
+    const res = switch (info) {
+        .int, .comptime_int => blk: {
+            if (T == u64 or T == i64) {
+                break :blk c.sqlite3_bind_int64(stmt, idx, @intCast(param));
+            } else {
+                break :blk c.sqlite3_bind_int(stmt, idx, @intCast(param));
+            }
+        },
+        .float, .comptime_float => c.sqlite3_bind_double(stmt, idx, @floatCast(param)),
+        .bool => c.sqlite3_bind_int(stmt, idx, @intFromBool(param)),
+        .@"enum" => blk: {
+            const enum_int = @intFromEnum(param);
+            break :blk c.sqlite3_bind_int(stmt, idx, @intCast(enum_int));
+        },
+        .optional => blk: {
+            if (param == null) {
+                break :blk c.sqlite3_bind_null(stmt, idx);
+            } else {
+                break :blk bindValue(stmt, idx, param.?);
+            }
+        },
+        .pointer => blk: {
+            break :blk c.sqlite3_bind_text(stmt, idx, @ptrCast(param), @intCast(param.len), null);
+        },
+        else => return error.Unsupported,
+    };
+
+    if (res != OK) return error.FailedPrepare;
+}
+
+test "binding" {
+    var conn = try Connection.init(":memory:");
+    defer conn.deinit();
+    const sql =
+        \\CREATE TABLE works (
+        \\ id TEXT,
+        \\ num INTEGER,
+        \\ decimal REAL,
+        \\ is_valid INTEGER 
+        \\)
+    ;
+    try conn.exec(sql);
+    const insert_sql =
+        \\
+        \\SELECT id FROM works 
+        \\WHERE id = @id 
+        \\AND num = @num 
+        \\AND decimal = @decimal 
+        \\AND is_valid = @valid
+    ;
+    var stmt = try Statement.init(&conn, insert_sql);
+    defer stmt.deinit() catch {};
+    try stmt.bindParam("@id", "abc");
+    try stmt.bindParam("@num", 12389);
+    try stmt.bindParam("@decimal", 4.56);
+    try stmt.bindParam("@valid", true);
+}
+
+test "bind struct" {
+    var conn = try Connection.init(":memory:");
+    defer conn.deinit();
+    const sql =
+        \\CREATE TABLE works (
+        \\ id TEXT,
+        \\ num INTEGER,
+        \\ decimal REAL,
+        \\ is_valid INTEGER 
+        \\)
+    ;
+    try conn.exec(sql);
+    const Input = struct {
+        id: []const u8 = "abc",
+        num: u32 = 12389,
+        decimal: f64 = 4.56,
+        valid: bool = true,
+    };
+
+    const insert_sql =
+        \\
+        \\SELECT id FROM works 
+        \\WHERE id = @id 
+        \\AND num = @num 
+        \\AND decimal = @decimal 
+        \\AND is_valid = @valid
+    ;
+    var stmt = try Statement.init(&conn, insert_sql);
+    defer stmt.deinit() catch {};
+    try stmt.bindStruct(Input{});
+}

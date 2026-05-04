@@ -6,3 +6,7 @@ const conn = @import("conn.zig");
 pub const Connection = conn.Connection;
 const stmt = @import("stmt.zig");
 pub const Statement = stmt.Statement;
+
+test {
+    std.testing.refAllDecls(@This());
+}
