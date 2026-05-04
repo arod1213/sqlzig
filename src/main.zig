@@ -64,7 +64,7 @@ pub fn main() !void {
     defer conn.deinit();
 
     const migration = "CREATE TABLE IF NOT EXISTS files ( id INT not null, name TEXT not null, older INT not null)";
-    try conn.exec(migration, nothing);
+    try conn.exec(migration);
 
     // try insertALot(&conn);
     try query(&conn);
