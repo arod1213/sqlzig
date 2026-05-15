@@ -157,7 +157,7 @@ fn bindValue(stmt: ?*c.sqlite3_stmt, idx: c_int, param: anytype) !void {
             const enum_int = @intFromEnum(param);
             break :blk c.sqlite3_bind_int(stmt, idx, @intCast(enum_int));
         },
-        .optional => {
+        .optional => blk: {
             if (param == null) {
                 break :blk c.sqlite3_bind_null(stmt, idx);
             } else {
