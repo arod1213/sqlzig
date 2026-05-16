@@ -5,7 +5,7 @@ const c = @import("sqlite");
 const connection = @import("./conn.zig");
 const Connection = connection.Connection;
 
-const StatementRes = enum(c_int) {
+pub const StatementRes = enum(c_int) {
     done = c.SQLITE_DONE,
     row = c.SQLITE_ROW,
 };
@@ -62,7 +62,9 @@ pub const Statement = struct {
     pub fn init(conn: *const Connection, sql: [:0]const u8) !Self {
         var ptr: ?*c.sqlite3_stmt = undefined;
         const res = c.sqlite3_prepare_v3(conn.ptr, sql, -1, 0, &ptr, null);
-        if (res != OK) return error.FailedPrepare;
+        if (res != OK) {
+            return error.FailedPrepare;
+        }
         return .{
             .ptr = ptr,
         };
@@ -82,19 +84,6 @@ pub const Statement = struct {
         const res = c.sqlite3_step(self.ptr);
         return std.enums.fromInt(StatementRes, res) orelse return error.FailedStmt;
     }
-
-    // pub fn readStruct(self: *const Self, comptime T: type) !T {
-    //     const info = @typeInfo(T);
-    //     assert(info == .@"struct");
-    //     var target: T = undefined;
-    //     inline for (info.@"struct".fields) |field| {
-    //         std.log.err("field name is {s} {any}", .{ field.name, field.type });
-    //         const idx = try columnIndex(self.ptr, @ptrCast(field.name));
-    //         const val = try self.readColumn(field.type, idx);
-    //         @field(target, field.name) = val;
-    //     }
-    //     return target;
-    // }
 
     pub fn readColumn(self: *const Self, comptime T: type, idx: c_int) !T {
         const info = @typeInfo(T);
