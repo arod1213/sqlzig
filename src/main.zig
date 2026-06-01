@@ -49,6 +49,16 @@ pub fn insertALot(conn: *const Connection) !void {
     try conn.closeTransaction(true);
 }
 
+pub fn bindStruct(conn: *const Connection) !void {
+    const sql = "SELECT id, older, name FROM files LIMIT 1";
+    const stmt = try Statement.init(conn, sql);
+    defer stmt.deinit() catch {};
+    _ = try stmt.exec();
+
+    const val = try stmt.readStruct(Abc);
+    std.log.info("val is {any}", .{val});
+}
+
 pub fn query(conn: *const Connection) !void {
     const sql = "SELECT id, older, name FROM files LIMIT 1";
     const stmt = try Statement.init(conn, sql);
@@ -74,6 +84,7 @@ pub fn main() !void {
     try conn.exec(migration);
 
     // try sqlzig.insertALot(&conn);
-    try query(&conn);
+    // try query(&conn);
+    try bindStruct(&conn);
     // try sqlzig.insert(&conn);
 }

@@ -85,6 +85,31 @@ pub const Statement = struct {
         return std.enums.fromInt(StatementRes, res) orelse return error.FailedStmt;
     }
 
+    fn columnIndex(self: *const Self, name: []const u8) !c_int {
+        const column_count: usize = @intCast(c.sqlite3_column_count(self.ptr));
+        for (0..column_count) |idx| {
+            const column_name = c.sqlite3_column_name(self.ptr, @intCast(idx));
+            if (column_name == null) continue;
+            if (std.mem.eql(u8, std.mem.span(column_name), name)) {
+                return @intCast(idx);
+            }
+        }
+        return error.InvalidName;
+    }
+
+    pub fn readStruct(self: *const Self, comptime T: type) !T {
+        const info = @typeInfo(T);
+        assert(info == .@"struct");
+        var target: T = undefined;
+        inline for (info.@"struct".fields) |field| {
+            std.log.err("field name is {s} {any}", .{ field.name, field.type });
+            const idx = try columnIndex(self, @ptrCast(field.name));
+            const val = try self.readColumn(field.type, idx);
+            @field(target, field.name) = val;
+        }
+        return target;
+    }
+
     pub fn readColumn(self: *const Self, comptime T: type, idx: c_int) !T {
         const info = @typeInfo(T);
         return switch (info) {
